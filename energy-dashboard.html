@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>全家板橋板川店 - 能源監控儀表板</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f1a;
+    --panel: #111827;
+    --panel2: #0d1520;
+    --border: #1e2d42;
+    --accent: #00d4a0;
+    --accent2: #00b8e6;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --grid: #1a2535;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
+  .sidebar { width: 64px; background: #080d14; border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 8px; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; }
+  .logo { width: 40px; height: 40px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 14px; color: #000; margin-bottom: 16px; }
+  .nav-item { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--muted); transition: all 0.2s; }
+  .nav-item:hover { background: var(--panel); color: var(--accent); }
+  .nav-item.active { background: rgba(0,212,160,0.15); color: var(--accent); }
+  .nav-item svg { width: 20px; height: 20px; }
+  .main { margin-left: 64px; flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+  .topbar { height: 56px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 16px; position: sticky; top: 0; z-index: 50; }
+  .page-title { font-size: 14px; color: var(--muted); }
+  .store-name { font-size: 16px; font-weight: 700; color: var(--text); flex: 1; text-align: center; letter-spacing: 1px; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .badge { background: rgba(0,212,160,0.15); color: var(--accent); border: 1px solid rgba(0,212,160,0.3); padding: 3px 8px; border-radius: 4px; font-size: 11px; font-family: 'IBM Plex Mono', monospace; font-weight: 600; }
+  .signal { display: flex; align-items: flex-end; gap: 2px; height: 16px; }
+  .signal span { width: 3px; background: var(--accent); border-radius: 1px; }
+  .signal span:nth-child(1){height:4px} .signal span:nth-child(2){height:7px} .signal span:nth-child(3){height:10px} .signal span:nth-child(4){height:13px} .signal span:nth-child(5){height:16px}
+  .lang-btn { font-size: 12px; color: var(--muted); background: var(--panel2); border: 1px solid var(--border); padding: 4px 10px; border-radius: 6px; cursor: pointer; }
+  .user-btn { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text); cursor: pointer; }
+  .avatar { width: 28px; height: 28px; background: var(--panel2); border: 1px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--accent); }
+  .status-bar { background: rgba(0,212,160,0.03); border-bottom: 1px solid var(--border); padding: 6px 24px; font-size: 11px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; display: flex; gap: 24px; align-items: center; }
+  .status-ok { color: var(--accent); }
+  .live-dot { display: inline-block; width: 6px; height: 6px; background: var(--accent); border-radius: 50%; margin-right: 4px; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+  .content { padding: 20px 24px; flex: 1; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; position: relative; overflow: hidden; }
+  .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,212,160,0.3), transparent); }
+  .card-label { font-size: 12px; color: var(--muted); margin-bottom: 12px; font-weight: 500; }
+  .card-value { font-family: 'IBM Plex Mono', monospace; font-size: 26px; font-weight: 600; color: var(--accent); line-height: 1; }
+  .card-unit { font-size: 13px; font-weight: 400; color: var(--accent2); margin-left: 3px; }
+  .card-time { font-size: 10px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; margin-top: 8px; }
+  .gauge-wrap { display: flex; flex-direction: column; align-items: center; }
+  .gauge { position: relative; width: 120px; height: 65px; margin-bottom: 4px; }
+  .gauge svg { width: 120px; height: 65px; }
+  .gauge-track { fill: none; stroke: var(--grid); stroke-width: 8; stroke-linecap: round; }
+  .gauge-fill { fill: none; stroke: var(--accent); stroke-width: 8; stroke-linecap: round; }
+  .gauge-fill.blue { stroke: var(--accent2); }
+  .gauge-labels { display: flex; justify-content: space-between; width: 100%; font-size: 9px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; margin-bottom: 6px; }
+  .pf-bar-track { height: 40px; background: var(--grid); border-radius: 4px; position: relative; overflow: hidden; margin: 10px 0; }
+  .pf-bar-fill { height: 100%; background: var(--accent); border-radius: 4px; display: flex; align-items: center; justify-content: center; }
+  .pf-bar-value { font-family: 'IBM Plex Mono', monospace; font-size: 18px; font-weight: 600; color: #000; }
+  .pf-line { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--danger); right: 10%; }
+  .pf-scale { display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
+  .reactive-bar-track { height: 56px; background: var(--grid); border-radius: 4px; position: relative; display: flex; align-items: center; margin: 10px 0; overflow: hidden; }
+  .reactive-bar-fill { height: 100%; background: #f59e0b; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
+  .reactive-val { font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 600; color: #000; padding: 0 8px; white-space: nowrap; }
+  .reactive-scale { display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
+  .bottom-grid { display: grid; grid-template-columns: 180px 1fr; gap: 16px; margin-top: 16px; }
+  .energy-result { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .ring-wrap { position: relative; width: 110px; height: 110px; }
+  .ring-wrap svg { width: 110px; height: 110px; transform: rotate(-90deg); }
+  .ring-bg { fill: none; stroke: var(--grid); stroke-width: 10; }
+  .ring-fill { fill: none; stroke: var(--accent); stroke-width: 10; stroke-dasharray: 314; stroke-dashoffset: 314; stroke-linecap: round; }
+  .ring-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; }
+  .ring-pct { font-family: 'IBM Plex Mono', monospace; font-size: 18px; font-weight: 600; color: var(--warn); }
+  .ring-sub { font-size: 9px; color: var(--muted); }
+  .view-btn { background: transparent; border: 1px solid var(--accent); color: var(--accent); padding: 6px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: 'Noto Sans TC', sans-serif; transition: all 0.2s; }
+  .view-btn:hover { background: rgba(0,212,160,0.1); }
+  .chart-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .chart-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 14px; }
+  .chart-area { position: relative; height: 155px; background: var(--panel2); border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+  .chart-svg { width: 100%; height: 100%; }
+  .chart-legend { display: flex; gap: 14px; margin-top: 10px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .chart-x-labels { display: flex; justify-content: space-between; margin-top: 6px; padding: 0 4px; font-size: 9px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
+  .data-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .data-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px 14px; position: relative; overflow: hidden; transition: border-color 0.2s; }
+  .data-card:hover { border-color: rgba(0,212,160,0.3); }
+  .data-card::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background: linear-gradient(90deg,transparent,rgba(0,212,160,0.2),transparent); }
+  .data-card-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .data-card-value { font-family: 'IBM Plex Mono', monospace; font-size: 24px; font-weight: 600; color: var(--accent); }
+  .data-card-unit { font-size: 12px; font-weight: 400; color: var(--accent2); margin-left: 3px; }
+  .data-card-sub { font-size: 10px; color: var(--danger); margin-bottom: 4px; }
+  .stats-chart-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .stats-chart-header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+  .date-range { display: flex; align-items: center; gap: 8px; background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 13px; font-family: 'IBM Plex Mono', monospace; color: var(--text); }
+  .select-box { background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 12px; color: var(--muted); min-width: 160px; }
+  .big-chart { position: relative; height: 280px; background: var(--panel2); border-radius: 8px; border: 1px solid var(--border); overflow: hidden; }
+</style>
+</head>
+<body>
+<aside class="sidebar">
+  <div class="logo">Mi</div>
+  <div class="nav-item active" onclick="showPage('dashboard')" title="儀表板">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+  </div>
+  <div class="nav-item" onclick="showPage('stats')" title="數據統計">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+  </div>
+  <div class="nav-item" onclick="showPage('settings')" title="設定">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 19.07l1.41-1.41M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M19.07 19.07l-1.41-1.41"/></svg>
+  </div>
+  <div class="nav-item" title="位置">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+  </div>
+  <div style="flex:1"></div>
+  <div class="nav-item" title="用戶">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+  </div>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <span class="page-title" id="page-title">儀表板</span>
+    <span class="store-name">全家板橋板川店</span>
+    <div class="topbar-right">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="badge">4G LTE</span>
+      <div class="signal"><span></span><span></span><span></span><span></span><span></span></div>
+      <span class="lang-btn">繁體中文 ▾</span>
+      <div class="user-btn"><div class="avatar">用2</div>用戶2 ▾</div>
+    </div>
+  </header>
+
+  <div class="status-bar">
+    <span><span class="live-dot"></span>即時監控</span>
+    <span>最後更新: <span class="status-ok" id="last-update">2026/1/5 10:39:51</span></span>
+    <span>設備狀態: <span class="status-ok">正常</span></span>
+    <span>連線: <span class="status-ok">4G LTE ●●●●●</span></span>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="content page active" id="page-dashboard">
+    <!-- Row 1 -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr) 150px;gap:14px;margin-bottom:14px;">
+      <div class="card">
+        <div class="card-label">平均電壓</div>
+        <div class="gauge-wrap">
+          <div class="gauge">
+            <svg viewBox="0 0 120 65">
+              <path d="M10,60 A50,50 0 0,1 110,60" class="gauge-track"/>
+              <path d="M10,60 A50,50 0 0,1 110,60" class="gauge-fill" stroke-dasharray="157" stroke-dashoffset="20"/>
+            </svg>
+          </div>
+          <div class="gauge-labels"><span>0</span><span>100</span><span>200</span><span>300</span><span>400</span></div>
+          <div class="card-value">397.2<span class="card-unit">V</span></div>
+        </div>
+        <div class="card-time">2026/1/5 10:39:51</div>
+      </div>
+      <div class="card">
+        <div class="card-label">總電流</div>
+        <div class="gauge-wrap">
+          <div class="gauge">
+            <svg viewBox="0 0 120 65">
+              <path d="M10,60 A50,50 0 0,1 110,60" class="gauge-track"/>
+              <path d="M10,60 A50,50 0 0,1 110,60" class="gauge-fill" stroke-dasharray="157" stroke-dashoffset="100"/>
+            </svg>
+          </div>
+          <div class="gauge-labels"><span>0</span><span>50</span><span>100</span><span>150</span><span>200</span></div>
+          <div class="card-value">73.4<span class="card-unit">A</span></div>
+        </div>
+        <div class="card-time">2026/1/5 10:39:51</div>
+      </div>
+      <div class="card">
+        <div class="card-label">總功率</div>
+        <div class="gauge-wrap">
+          <div class="gauge">
+            <svg viewBox="0 0 120 65">
+              <path d="M10,60 A50,50 0 0,1 110,60" class="gauge-track"/>
+              <path d="M10,60 A50,50 0 0,1 110,60" class="gauge-fill" stroke-dasharray="157" stroke-dashoffset="88"/>
+            </svg>
+          </div>
+          <div class="gauge-labels"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+          <div class="card-value">44.42<span class="card-unit">kW</span></div>
+        </div>
+        <div class="card-time">2026/1/5 10:39:51</div>
+      </div>
+      <div class="card">
+        <div class="card-label">總負載</div>
+        <div class="gauge-wrap">
+          <div class="gauge">
+            <svg viewBox="0 0 120 65">
+              <path d="M10,60 A50,50 0 0,1 110,60" class="gauge-track"/>
+              <path d="M10,60 A50,50 0 0,1 110,60" class="gauge-fill blue" stroke-dasharray="157" stroke-dashoffset="80"/>
+            </svg>
+          </div>
+          <div class="gauge-labels"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+          <div class="card-value">48.85<span class="card-unit">kVA</span></div>
+        </div>
+        <div class="card-time">2026/1/5 10:39:51</div>
+      </div>
+      <div class="card" style="display:flex;flex-direction:column;gap:6px;justify-content:center;">
+        <div style="font-size:11px;color:var(--muted);">天氣 <span style="background:rgba(0,212,160,0.15);color:var(--accent);border:1px solid rgba(0,212,160,0.3);padding:1px 6px;border-radius:3px;font-size:10px;">新北市</span></div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:22px;">⛅</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:var(--warn);">19.2°C</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:16px;">💧</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:600;color:var(--accent2);">70%</span>
+        </div>
+        <div class="card-time">2026/1/5 10:39:52</div>
+      </div>
+    </div>
+
+    <!-- Row 2 -->
+    <div style="display:grid;grid-template-columns:1fr 1.2fr 1fr 1fr;gap:14px;margin-bottom:14px;">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+          <div class="card-label" style="margin:0;">功率因數 (PF=0~1)</div>
+          <div style="font-size:9px;color:var(--muted);font-family:'IBM Plex Mono',monospace;">2026/1/5 10:39:51</div>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">抵銷前：0 千瓦<br>抵銷後：0 千瓦</div>
+        <div class="pf-bar-track">
+          <div class="pf-bar-fill" style="width:91%;"><span class="pf-bar-value">0.91</span></div>
+          <div class="pf-line"></div>
+        </div>
+        <div class="pf-scale"><span>0</span><span>0.2</span><span>0.4</span><span>0.6</span><span>0.8</span><span>1</span></div>
+      </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+          <div class="card-label" style="margin:0;font-size:11px;">總無功功率 (正=感性、負=容性)</div>
+          <div style="font-size:9px;color:var(--muted);font-family:'IBM Plex Mono',monospace;">2026/1/5 10:39:51</div>
+        </div>
+        <div class="reactive-bar-track">
+          <div style="width:60%;margin-left:40%;" class="reactive-bar-fill">
+            <span class="reactive-val">13.04 kVAR</span>
+          </div>
+        </div>
+        <div class="reactive-scale"><span>10</span><span>-5</span><span>0</span><span>5</span><span>10</span></div>
+      </div>
+      <div class="card">
+        <div class="card-label">電壓總諧波失真(%)</div>
+        <div class="gauge-wrap">
+          <div class="gauge">
+            <svg viewBox="0 0 120 65">
+              <path d="M10,60 A50,50 0 0,1 110,60" class="gauge-track"/>
+              <path d="M10,60 A50,50 0 0,1 110,60" class="gauge-fill blue" stroke-dasharray="157" stroke-dashoffset="153"/>
+            </svg>
+          </div>
+          <div class="gauge-labels"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+          <div class="card-value" style="text-align:center;font-size:22px;">2.3<span class="card-unit">%</span></div>
+        </div>
+        <div class="card-time">2026/1/5 10:39:51</div>
+      </div>
+      <div class="card">
+        <div class="card-label">電流總諧波失真(%)</div>
+        <div class="gauge-wrap">
+          <div class="gauge">
+            <svg viewBox="0 0 120 65">
+              <path d="M10,60 A50,50 0 0,1 110,60" class="gauge-track"/>
+              <path d="M10,60 A50,50 0 0,1 110,60" class="gauge-fill blue" stroke-dasharray="157" stroke-dashoffset="102"/>
+            </svg>
+          </div>
+          <div class="gauge-labels"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+          <div class="card-value" style="text-align:center;font-size:22px;">35.2<span class="card-unit">%</span></div>
+        </div>
+        <div class="card-time">2026/1/5 10:39:51</div>
+      </div>
+    </div>
+
+    <!-- Bottom -->
+    <div class="bottom-grid">
+      <div class="energy-result">
+        <div style="font-size:14px;font-weight:600;">節能成果</div>
+        <div class="ring-wrap">
+          <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="50" class="ring-bg"/><circle cx="60" cy="60" r="50" class="ring-fill"/></svg>
+          <div class="ring-center"><div class="ring-sub">總節能率(%)</div><div class="ring-pct">↑ 0%</div></div>
+        </div>
+        <button class="view-btn" onclick="showPage('dataoverview')">◉ 數據總覽</button>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">數據比較圖</div>
+        <div class="chart-area">
+          <svg class="chart-svg" viewBox="0 0 800 155" preserveAspectRatio="none">
+            <rect x="0" y="52" width="800" height="65" fill="rgba(239,68,68,0.1)"/>
+            <text x="400" y="48" fill="rgba(239,68,68,0.55)" font-size="9" text-anchor="middle" font-family="monospace">1月預估基線</text>
+            <line x1="0" y1="30" x2="800" y2="30" stroke="#1a2535" stroke-width="1"/>
+            <line x1="0" y1="75" x2="800" y2="75" stroke="#1a2535" stroke-width="1"/>
+            <line x1="0" y1="120" x2="800" y2="120" stroke="#1a2535" stroke-width="1"/>
+            <polyline fill="none" stroke="#00b8e6" stroke-width="1.5" points="0,70 25,58 50,75 75,48 100,65 125,55 150,70 175,55 200,72 225,60 250,50 275,68 300,57 325,72 350,62 375,68 400,74 425,60 450,52 475,68 500,62 525,70 550,58 575,68 600,74 625,62 650,55 675,70 700,62 725,75 750,64 775,70 800,68"/>
+            <polyline fill="none" stroke="#22c55e" stroke-width="1.5" points="0,118 25,122 50,115 75,125 100,118 125,125 150,118 175,125 200,118 225,125 250,118 275,112 300,125 325,118 350,125 375,118 400,125 425,118 450,125 475,118 500,125 525,115 550,122 575,118 600,125 625,118 650,125 675,118 700,125 725,118 750,125 775,118 800,122"/>
+            <polyline fill="none" stroke="#f59e0b" stroke-width="1.5" points="0,65 25,52 50,70 75,44 100,60 125,50 150,65 175,50 200,67 225,55 250,46 275,63 300,52 325,67 350,57 375,63 400,69 425,55 450,48 475,63 500,58 525,65 550,52 575,63 600,69 625,57 650,50 675,65 700,57 725,70 750,59 775,65 800,63"/>
+          </svg>
+        </div>
+        <div class="chart-x-labels"><span>01-04 10:35</span><span>01-04 13:45</span><span>01-04 16:55</span><span>01-04 20:05</span><span>01-04 23:15</span><span>01-05 02:25</span><span>01-05 05:35</span><span>01-05 08:45</span></div>
+        <div class="chart-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#00b8e6"></div>總功率</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>總無功功率</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>總負載</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#94a3b8"></div>功率因數(PF=0~1)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#64748b"></div>總有效電能</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#475569"></div>總無效電能</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#334155"></div>電壓THD(%)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Overview -->
+  <div class="content page" id="page-dataoverview">
+    <div style="font-size:13px;color:var(--muted);margin-bottom:16px;">儀表板 / <span style="color:var(--text);">數據總覽</span></div>
+    <div class="data-grid" style="margin-bottom:12px;">
+      <div class="data-card"><div class="data-card-label">L1相電壓</div><div class="data-card-value">224.7<span class="data-card-unit">伏</span></div></div>
+      <div class="data-card"><div class="data-card-label">L2相電壓</div><div class="data-card-value">237.4<span class="data-card-unit">伏</span></div></div>
+      <div class="data-card"><div class="data-card-label">L3相電壓</div><div class="data-card-value">227.1<span class="data-card-unit">伏</span></div></div>
+      <div class="data-card"><div class="data-card-label">L1電流</div><div class="data-card-value">72.2<span class="data-card-unit">安培</span></div></div>
+      <div class="data-card"><div class="data-card-label">L2電流</div><div class="data-card-value">76.5<span class="data-card-unit">安培</span></div></div>
+      <div class="data-card"><div class="data-card-label">L3電流</div><div class="data-card-value">77.5<span class="data-card-unit">安培</span></div></div>
+      <div class="data-card"><div class="data-card-label">不穩定相電壓</div><div class="data-card-value">229.7<span class="data-card-unit">伏</span></div></div>
+      <div class="data-card"><div class="data-card-label">目前現狀</div><div class="data-card-value">75.4<span class="data-card-unit">安培</span></div></div>
+      <div class="data-card"><div class="data-card-label">目前和</div><div class="data-card-value">226.2<span class="data-card-unit">安培</span></div></div>
+      <div class="data-card"><div class="data-card-label">總有效功率</div><div class="data-card-value">48.02<span class="data-card-unit">千瓦</span></div></div>
+      <div class="data-card"><div class="data-card-label">總視在權力</div><div class="data-card-value">52.59<span class="data-card-unit">千伏安</span></div></div>
+      <div class="data-card"><div class="data-card-label">總光電發電</div><div class="data-card-value">14.85<span class="data-card-unit">kVar</span></div></div>
+      <div class="data-card"><div class="data-card-label">總功率因數</div><div class="data-card-value">0.92</div></div>
+      <div class="data-card"><div class="data-card-label">頻率</div><div class="data-card-value">0.00<span class="data-card-unit">Hz</span></div></div>
+      <div class="data-card"><div class="data-card-label">視在通知</div><div class="data-card-value">30.97<span class="data-card-unit">kVar</span></div></div>
+      <div class="data-card"><div class="data-card-label">L1-2線電壓</div><div class="data-card-value">216.6<span class="data-card-unit">伏</span></div></div>
+      <div class="data-card"><div class="data-card-label">L2-3線電壓</div><div class="data-card-value">220.1<span class="data-card-unit">伏</span></div></div>
+      <div class="data-card"><div class="data-card-label">L3-1線電壓</div><div class="data-card-value">218.4<span class="data-card-unit">伏</span></div></div>
+      <div class="data-card"><div class="data-card-label">電壓線</div><div class="data-card-value">218.4<span class="data-card-unit">伏</span></div></div>
+      <div class="data-card"><div class="data-card-label">不穩定相電壓總含量</div><div class="data-card-value">0.0<span class="data-card-unit">%</span></div></div>
+      <div class="data-card"><div class="data-card-label">主要電流總含量</div><div class="data-card-value">11.9<span class="data-card-unit">%</span></div></div>
+      <div class="data-card"><div class="data-card-label">電壓線電壓總濃度</div><div class="data-card-value">3.4<span class="data-card-unit">%</span></div></div>
+      <div class="data-card"><div class="data-card-label">總有效電能</div><div class="data-card-value">30.24<span class="data-card-unit">度</span></div></div>
+      <div class="data-card"><div class="data-card-label">總無效電能</div><div class="data-card-value">6.67<span class="data-card-unit">kVArh</span></div></div>
+    </div>
+    <div class="data-grid">
+      <div class="data-card"><div class="data-card-label">電錶系統模式</div><div class="data-card-value">7</div></div>
+      <div class="data-card"><div class="data-card-label">第一部分</div><div class="data-card-sub">電錶一次測電壓</div><div class="data-card-value">230</div></div>
+      <div class="data-card"><div class="data-card-label">第二部分</div><div class="data-card-sub">二次測量電壓</div><div class="data-card-value">230</div></div>
+      <div class="data-card"><div class="data-card-label">CT1</div><div class="data-card-sub">CT一次測電流</div><div class="data-card-value">100</div></div>
+      <div class="data-card"><div class="data-card-label">CT2</div><div class="data-card-sub">CT測量二次電流</div><div class="data-card-value">5</div></div>
+      <div class="data-card"><div class="data-card-label">電壓相序</div><div class="data-card-sub">1:正序、2:逆序、3:缺相</div><div class="data-card-value">2</div></div>
+      <div class="data-card"><div class="data-card-label">最新電流相序</div><div class="data-card-sub">1:正序、2:逆序、3:缺相</div><div class="data-card-value">1</div></div>
+      <div class="data-card"><div class="data-card-label">主要負載特性</div><div class="data-card-sub">1：阻性、2：感性、3：容性</div><div class="data-card-value">3</div></div>
+      <div class="data-card"><div class="data-card-label">L1負載特性</div><div class="data-card-sub">1：阻性、2：感性、3：容性</div><div class="data-card-value">不適用</div></div>
+      <div class="data-card"><div class="data-card-label">L2負載特性</div><div class="data-card-sub">1：阻性、2：感性、3：容性</div><div class="data-card-value">不適用</div></div>
+      <div class="data-card"><div class="data-card-label">L3負載特性</div><div class="data-card-sub">1：阻性、2：感性、3：容性</div><div class="data-card-value">不適用</div></div>
+    </div>
+  </div>
+
+  <!-- Statistics -->
+  <div class="content page" id="page-stats">
+    <div class="stats-chart-card">
+      <div class="chart-title">數據比較圖1</div>
+      <div class="stats-chart-header">
+        <div class="date-range">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          2026-01-05 — 2026-01-05
+        </div>
+        <div class="select-box">請選擇要比較之… ▾</div>
+        <div class="select-box">請選擇要比較之… ▾</div>
+        <div style="margin-left:auto;color:var(--accent);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+        </div>
+      </div>
+      <div class="big-chart">
+        <svg width="100%" height="100%" viewBox="0 0 900 280" preserveAspectRatio="none">
+          <line x1="0" y1="56" x2="900" y2="56" stroke="#1a2535" stroke-width="1"/>
+          <line x1="0" y1="105" x2="900" y2="105" stroke="#1a2535" stroke-width="1"/>
+          <line x1="0" y1="154" x2="900" y2="154" stroke="#1a2535" stroke-width="1"/>
+          <line x1="0" y1="203" x2="900" y2="203" stroke="#1a2535" stroke-width="1"/>
+          <line x1="0" y1="252" x2="900" y2="252" stroke="#1a2535" stroke-width="1"/>
+          <rect x="0" y="105" width="900" height="98" fill="rgba(239,68,68,0.08)"/>
+          <text x="550" y="100" fill="rgba(239,68,68,0.55)" font-size="10" font-family="monospace">1月預估基線</text>
+          <line x1="450" y1="0" x2="450" y2="280" stroke="#f59e0b" stroke-width="1" stroke-dasharray="4,4"/>
+          <polyline fill="none" stroke="#00b8e6" stroke-width="1.5"
+            points="0,125 40,108 80,135 120,95 160,118 200,105 240,128 280,98 320,122 360,108 400,135 440,102 450,260 500,260 550,260 600,260 650,260 700,260 750,260 800,260 850,260 900,260"/>
+          <polyline fill="none" stroke="#22c55e" stroke-width="1.5"
+            points="0,210 40,215 80,205 120,220 160,207 200,218 240,210 280,222 320,205 360,218 400,210 440,205 450,260 500,260 550,260 600,260 650,260 700,260 750,260 800,260 850,260 900,260"/>
+          <polyline fill="none" stroke="#f59e0b" stroke-width="1.5"
+            points="0,120 40,102 80,130 120,90 160,112 200,100 240,122 280,94 320,117 360,102 400,130 440,96 450,260 500,260 550,260 600,260 650,260 700,260 750,260 800,260 850,260 900,260"/>
+          <text x="8" y="60" fill="#64748b" font-size="8" font-family="monospace">25,000</text>
+          <text x="8" y="109" fill="#64748b" font-size="8" font-family="monospace">20,000</text>
+          <text x="8" y="158" fill="#64748b" font-size="8" font-family="monospace">15,000</text>
+          <text x="8" y="207" fill="#64748b" font-size="8" font-family="monospace">10,000</text>
+          <text x="8" y="256" fill="#64748b" font-size="8" font-family="monospace">5,000</text>
+          <text x="8" y="276" fill="#64748b" font-size="8" font-family="monospace">0</text>
+        </svg>
+      </div>
+      <div class="chart-x-labels"><span>01-05 00:00</span><span>01-05 02:30</span><span>01-05 05:00</span><span>01-05 07:30</span><span>01-05 10:00</span><span>01-05 12:30</span><span>01-05 15:00</span><span>01-05 17:30</span><span>01-05 20:00</span><span>01-05 22:30</span></div>
+      <div class="chart-legend" style="margin-top:12px;">
+        <div class="legend-item"><div class="legend-dot" style="background:#00b8e6"></div>總功率</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>總無功功率</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>總負載</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#94a3b8"></div>功率因數(PF=0~1)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#64748b"></div>總有效電能</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#475569"></div>總無效電能</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#334155"></div>電壓THD(%)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#1e293b"></div>電流THD(%)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#0f172a"></div>三相線電</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="content page" id="page-settings">
+    <div style="display:flex;align-items:center;justify-content:center;height:300px;color:var(--muted);font-size:14px;">設定頁面 — 功能開發中</div>
+  </div>
+</main>
+
+<script>
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const map = { dashboard: 0, dataoverview: 0, stats: 1, settings: 2 };
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item')[map[name]].classList.add('active');
+  const titles = { dashboard:'儀表板', dataoverview:'儀表板 / 數據總覽', stats:'數據統計', settings:'設定' };
+  document.getElementById('page-title').textContent = titles[name];
+}
+setInterval(() => {
+  const now = new Date();
+  const s = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  document.getElementById('last-update').textContent = s;
+}, 1000);
+</script>
+</body>
+</html>
