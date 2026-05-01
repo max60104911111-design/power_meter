@@ -2,7 +2,7 @@
 // 資料庫連線設定
 $host = 'localhost';
 $db   = 'company';
-$user = 'root';
+$user = 'ROOT_pwd_123';
 $pass = '00000000';
 $charset = 'utf8mb4';
 
