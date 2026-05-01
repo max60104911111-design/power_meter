@@ -11,7 +11,7 @@ MQTT_TOPIC = "meter"  # 根據你的截圖，主題是 meter
 
 # --- PHP API 設定區 ---
 # 請更換為你放置 save_mqtt.php 的實際網址
-PHP_API_URL = "http://localhost:9091/power_meter.php" 
+PHP_API_URL = "http://27.0.0.1:9091/power_meter.php" 
 
 # 當連線至 MQTT Broker 成功時觸發
 def on_connect(client, userdata, flags, rc, properties=None):
