@@ -1,9 +1,9 @@
 <?php
 // 資料庫連線設定
 $host = 'localhost';
-$db   = 'company';
-$user = 'ROOT_pwd_123';
-$pass = '00000000';
+$db   = 'power_meter';
+$user = 'root';
+$pass = 'ROOT_pwd_123';
 $charset = 'utf8mb4';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
