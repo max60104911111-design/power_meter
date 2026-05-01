@@ -2,7 +2,7 @@
 header('Content-Type: application/json; charset=utf-8');
 
 $host = 'localhost';
-$db   = 'company';
+$db   = 'power_meter';
 $user = 'root';
 $pass = 'ROOT_pwd_123';
 $charset = 'utf8mb4';
